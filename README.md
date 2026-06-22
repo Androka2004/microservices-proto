@@ -2,7 +2,7 @@
 
 Repositório de contratos **Protocol Buffers (proto)** do projeto de estudo de **gRPC** e da linguagem **Go**.
 
-> Este repositório contém apenas as definições `.proto` e o código Go gerado a partir delas. A implementação do serviço está no repositório [microservices](https://github.com/Androka2004/microservices).
+> Este repositório contém apenas as definições `.proto` e o código Go gerado a partir delas. A implementação dos serviços está no repositório [microservices](https://github.com/Androka2004/microservices).
 
 ---
 
@@ -13,7 +13,7 @@ O objetivo é explorar na prática:
 - Definição de contratos de API com **Protocol Buffers**
 - Geração de código Go a partir de arquivos `.proto`
 - Compartilhamento de contratos entre serviços via módulo Go separado
-- Comunicação via **gRPC**
+- Comunicação via **gRPC** entre múltiplos microserviços
 
 Separar os contratos em um repositório próprio é uma prática comum em arquiteturas de microserviços: permite que múltiplos serviços (em linguagens diferentes) consumam os mesmos contratos sem duplicação.
 
@@ -24,14 +24,25 @@ Separar os contratos em um repositório próprio é uma prática comum em arquit
 ```
 microservices-proto/
 ├── order/
-│   └── order.proto          # Definição do serviço Order e suas mensagens
-└── golang/order/
-    ├── go.mod               # Módulo Go do código gerado
-    ├── order.pb.go          # Código gerado (mensagens)
-    └── order_grpc.pb.go     # Código gerado (serviço gRPC)
+│   └── order.proto              # Contrato do serviço Order
+├── payment/
+│   └── payment.proto            # Contrato do serviço Payment
+└── golang/
+    ├── order/
+    │   ├── go.mod
+    │   ├── order.pb.go
+    │   └── order_grpc.pb.go
+    └── payment/
+        ├── go.mod
+        ├── payment.pb.go
+        └── payment_grpc.pb.go
 ```
 
-### Contrato do serviço Order
+---
+
+## Contratos
+
+### Serviço Order
 
 ```protobuf
 service Order {
@@ -41,9 +52,22 @@ service Order {
 
 | Mensagem | Campos |
 |---|---|
-| `CreateOrderRequest` | `costumer_id` (int32), `order_items` (repeated), `total_price` (float) |
+| `CreateOrderRequest` | `costumer_id` (int32), `order_items` (repeated OrderItem), `total_price` (float) |
 | `OrderItem` | `product_code` (string), `unit_price` (float), `quantity` (int32) |
 | `CreateOrderResponse` | `order_id` (int32) |
+
+### Serviço Payment
+
+```protobuf
+service Payment {
+  rpc Create(CreatePaymentRequest) returns (CreatePaymentResponse) {}
+}
+```
+
+| Mensagem | Campos |
+|---|---|
+| `CreatePaymentRequest` | `user_id` (int64), `order_id` (int64), `total_price` (float) |
+| `CreatePaymentResponse` | `payment_id` (int64), `bill_id` (int64) |
 
 ---
 
@@ -57,30 +81,37 @@ service Order {
 
 ## Regenerar o código Go
 
-Caso edite o arquivo `.proto`, regenere o código com:
+Caso edite os arquivos `.proto`, regenere o código com:
 
 ```bash
+# Order
 protoc --go_out=golang/order \
        --go-grpc_out=golang/order \
        --proto_path=order \
        order/order.proto
+
+# Payment
+protoc --go_out=golang/payment \
+       --go-grpc_out=golang/payment \
+       --proto_path=payment \
+       payment/payment.proto
 ```
 
-Os arquivos gerados (`order.pb.go`, `order_grpc.pb.go`) são commitados neste repositório e consumidos pelo serviço via diretiva `replace` no `go.mod` do [microservices](https://github.com/Androka2004/microservices).
+Os arquivos gerados são commitados neste repositório e consumidos pelos serviços via diretiva `replace` no `go.mod` de cada serviço em [microservices](https://github.com/Androka2004/microservices).
 
 ---
 
-## Como usar em conjunto com o serviço
+## Como usar em conjunto com os serviços
 
 Clone ambos os repositórios na mesma pasta pai:
 
 ```
 pasta-pai/
-├── microservices/       ← implementação do serviço
+├── microservices/       ← implementação dos serviços
 └── microservices-proto/ ← este repositório
 ```
 
-O `go.mod` de `microservices/order` aponta para o módulo proto via:
+O `go.mod` de cada serviço aponta para o módulo proto via diretiva `replace`:
 
 ```
 replace github.com/Androka2004/microservices-proto/golang/order => ../../microservices-proto/golang/order
