@@ -27,15 +27,21 @@ microservices-proto/
 │   └── order.proto              # Contrato do serviço Order
 ├── payment/
 │   └── payment.proto            # Contrato do serviço Payment
+├── shipping/
+│   └── shipping.proto           # Contrato do serviço Shipping
 └── golang/
     ├── order/
     │   ├── go.mod
     │   ├── order.pb.go
     │   └── order_grpc.pb.go
-    └── payment/
+    ├── payment/
+    │   ├── go.mod
+    │   ├── payment.pb.go
+    │   └── payment_grpc.pb.go
+    └── shipping/
         ├── go.mod
-        ├── payment.pb.go
-        └── payment_grpc.pb.go
+        ├── shipping.pb.go
+        └── shipping_grpc.pb.go
 ```
 
 ---
@@ -69,6 +75,22 @@ service Payment {
 | `CreatePaymentRequest` | `user_id` (int64), `order_id` (int64), `total_price` (float) |
 | `CreatePaymentResponse` | `payment_id` (int64), `bill_id` (int64) |
 
+### Serviço Shipping
+
+```protobuf
+service Shipping {
+  rpc Create(CreateShippingRequest) returns (CreateShippingResponse) {}
+}
+```
+
+| Mensagem | Campos |
+|---|---|
+| `CreateShippingRequest` | `order_id` (int64), `order_items` (repeated ShippingItem) |
+| `ShippingItem` | `product_code` (string), `unit_price` (float), `quantity` (int32) |
+| `CreateShippingResponse` | `order_id` (int64), `delivery_days` (int32) |
+
+O prazo de entrega é calculado pelo serviço Shipping: mínimo de 1 dia, acrescido de 1 dia a cada 5 unidades totais (`1 + total_qty / 5`).
+
 ---
 
 ## Pré-requisitos para regenerar o código
@@ -95,6 +117,18 @@ protoc --go_out=golang/payment \
        --go-grpc_out=golang/payment \
        --proto_path=payment \
        payment/payment.proto
+
+# Shipping
+protoc --go_out=golang/shipping \
+       --go-grpc_out=golang/shipping \
+       --proto_path=shipping \
+       shipping/shipping.proto
+```
+
+Ou utilize o script `run.sh` (a partir da raiz de `microservices-proto/`) para gerar os três de uma vez:
+
+```bash
+bash run.sh
 ```
 
 Os arquivos gerados são commitados neste repositório e consumidos pelos serviços via diretiva `replace` no `go.mod` de cada serviço em [microservices](https://github.com/Androka2004/microservices).
